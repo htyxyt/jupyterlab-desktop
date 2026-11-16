@@ -15,7 +15,7 @@
 
 目前本仓库提供 **Windows x64 自解压包**：
 
-[下载 JupyterLab Desktop 中文适配版](https://github.com/htyxyt/jupyterlab-desktop/releases/download/v4.6.4-1-cn/JupyterLab-Desktop-CN-4.6.4-1-Windows-x64-SFX.exe) · [查看发布说明](https://github.com/htyxyt/jupyterlab-desktop/releases/tag/v4.6.4-1-cn)
+[下载 JupyterLab Desktop 中文适配版](https://github.com/htyxyt/jupyterlab-desktop/releases/download/v4.6.4-2-cn/JupyterLab-Desktop-CN-4.6.4-2-Windows-x64-SFX.exe) · [查看发布说明](https://github.com/htyxyt/jupyterlab-desktop/releases/tag/v4.6.4-2-cn)
 
 双击下载的文件，选择解压目录；解压完成后运行目录中的 `JupyterLab.exe`。请保留目录里的其他文件。这个自解压包不是安装程序，也没有内置 Python 环境。程序未签名，Windows 可能提示发布者未知。
 
