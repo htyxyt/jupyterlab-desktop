@@ -1,3 +1,4 @@
+import { locales, translateHtml, translateText } from '../i18n';
 // Copyright (c) Jupyter Development Team.
 // Distributed under the terms of the Modified BSD License.
 
@@ -18,14 +19,15 @@ import {
 } from '../config/settings';
 import { IRegistry } from '../registry';
 import { jlabCLICommandIsSetup } from '../utils';
+import { SettingType, userSettings } from '../config/settings';
 
 export class SettingsDialog {
   constructor(options: SettingsDialog.IOptions, registry: IRegistry) {
     this._window = new ThemedWindow({
       isDarkTheme: options.isDarkTheme,
-      title: 'Settings',
-      width: 700,
-      height: 500,
+      title: translateText('Settings'),
+      width: 800,
+      height: 720,
       preload: path.join(__dirname, './preload.js')
     });
 
@@ -158,6 +160,11 @@ export class SettingsDialog {
 
             <jp-tab-panel id="tab-panel-general">
               <jp-radio-group orientation="horizontal">
+                <label slot="label">When closing a window</label>
+                <jp-radio name="close-behavior" value="close" <%= !closeToTray ? 'checked' : '' %>>Close application</jp-radio>
+                <jp-radio name="close-behavior" value="tray" <%= closeToTray ? 'checked' : '' %>>Minimize to tray</jp-radio>
+              </jp-radio-group>
+              <jp-radio-group orientation="horizontal">
                 <label slot="label">On startup</label>
                 <jp-radio name="startup-mode" value="welcome-page" <%= startupMode === 'welcome-page' ? 'checked' : '' %>>Show welcome page</jp-radio>
                 <jp-radio name="startup-mode" value="new-local-session" <%= startupMode === 'new-local-session' ? 'checked' : '' %>>Start new session</jp-radio>
@@ -215,6 +222,15 @@ export class SettingsDialog {
                 <jp-checkbox id='checkbox-show-news-feed' type='checkbox' <%= showNewsFeed ? 'checked' : '' %> onchange='handleAutoCheckForUpdates(this);'>Show news feed on welcome page</jp-checkbox>
               </div>
 
+              <div class="setting-section" style="gap: 5px;">
+                <label for="language">Language</label>
+                <select id="language" style="min-width: 160px; padding: 5px;" aria-label="Language">
+                  <% locales.forEach(function(locale) { %>
+                  <option value="<%= locale.id %>" <%= language === locale.id ? 'selected' : '' %>><%= locale.label %></option>
+                  <% }); %>
+                </select>
+              </div>
+
               <script>
               const syncJupyterLabThemeCheckbox = document.getElementById('checkbox-sync-jupyterlab-theme');
               </script>
@@ -226,7 +242,9 @@ export class SettingsDialog {
               </div>
               <div class="row">
                 <div style="flex-grow: 1;">
-                  <jp-text-field type="text" id="working-directory" value="<%= defaultWorkingDirectory %>" style="width: 100%;" spellcheck="false" placeholder="/working/directory (leave empty for user home)"></jp-text-field>
+                  <jp-text-field type="text" id="working-directory" value="<%= defaultWorkingDirectory %>" style="width: 100%;" spellcheck="false" placeholder="${ejs.escapeXML(
+                    translateText('server.workingDirectoryPlaceholder')
+                  )}"></jp-text-field>
                 </div>
                 <div>
                   <jp-button id='select-working-directory' onclick='handleSelectWorkingDirectory(this);'>Change</jp-button>
@@ -234,7 +252,9 @@ export class SettingsDialog {
               </div>
 
               <div class="row">
-                <jp-text-area id='additional-server-args' appearance="outline" resize="vertical" rows="2" value="<%= serverArgs %>" oninput='handleAdditionalServerArgsInput(this);' spellcheck="false" placeholder="Enter additional server launch args separated by space">
+                <jp-text-area id='additional-server-args' appearance="outline" resize="vertical" rows="2" value="<%= serverArgs %>" oninput='handleAdditionalServerArgsInput(this);' spellcheck="false" placeholder="${ejs.escapeXML(
+                  translateText('server.argsPlaceholder')
+                )}">
                 Additional JupyterLab Server launch args
                 </jp-text-area>
               </div>
@@ -247,7 +267,9 @@ export class SettingsDialog {
                 </jp-text-area>
               </div>
               <div class="row">
-                <jp-text-area id='additional-server-env-vars' appearance="outline" resize="vertical" rows="2" value="<%= serverEnvVars %>" oninput='handleAdditionalServerEnvsInput(this);' spellcheck="false" placeholder='Enter additional environment variables in NAME="Value" format in separate lines'>
+                <jp-text-area id='additional-server-env-vars' appearance="outline" resize="vertical" rows="2" value="<%= serverEnvVars %>" oninput='handleAdditionalServerEnvsInput(this);' spellcheck="false" placeholder="${ejs.escapeXML(
+                  translateText('server.envPlaceholder')
+                )}">
                 Additional JupyterLab Server environment variables
                 </jp-text-area>
               </div>
@@ -376,7 +398,9 @@ export class SettingsDialog {
             <jp-tab-panel id="tab-panel-advanced">
               <div class="row setting-section">
                 <jp-radio-group orientation="horizontal">
-                  <label slot="label">${ctrlWLabel} behavior</label>
+                  <label slot="label">${ctrlWLabel} ${translateText(
+      'behavior'
+    )}</label>
                   <jp-radio name="ctrl-w-behavior" value="close-tab" <%= ctrlWBehavior === 'close-tab' ? 'checked' : '' %>>Close tab</jp-radio>
                   <jp-radio name="ctrl-w-behavior" value="close" <%= ctrlWBehavior === 'close' ? 'checked' : '' %>>Close session</jp-radio>
                   <jp-radio name="ctrl-w-behavior" value="warn" <%= ctrlWBehavior === 'warn' ? 'checked' : '' %>>Warn and close session</jp-radio>
@@ -520,6 +544,8 @@ export class SettingsDialog {
           window.electronAPI.setCheckForUpdatesAutomatically(autoUpdateCheckCheckbox.checked);
           window.electronAPI.setInstallUpdatesAutomatically(autoInstallCheckbox.checked);
           window.electronAPI.setSettings({
+            language: document.getElementById('language').value,
+            closeToTray: document.querySelector('jp-radio[name="close-behavior"].checked').value === 'tray',
             notifyOnBundledEnvUpdates: notifyOnBundledEnvUpdatesCheckbox.checked,
             updateBundledEnvAutomatically: updateBundledEnvAutomaticallyCheckbox.checked,
             uiMode: document.getElementById('ui-mode').value,
@@ -550,27 +576,32 @@ export class SettingsDialog {
         
       </script>
     `;
-    this._pageBody = ejs.render(template, {
-      startupMode,
-      theme,
-      syncJupyterLabTheme,
-      showNewsFeed,
-      checkForUpdatesAutomatically,
-      installUpdatesAutomaticallyEnabled,
-      installUpdatesAutomatically,
-      notifyOnBundledEnvUpdates,
-      updateBundledEnvAutomatically,
-      defaultWorkingDirectory,
-      logLevel,
-      serverArgs,
-      overrideDefaultServerArgs,
-      serverEnvVars: strServerEnvVars,
-      ctrlWBehavior,
-      cliCommandIsSetup,
-      uiMode,
-      uiModeForSingleFileOpen,
-      showTOCInZenMode
-    });
+    this._pageBody = translateHtml(
+      ejs.render(template, {
+        startupMode,
+        language: userSettings.getValue(SettingType.language),
+        locales,
+        closeToTray: userSettings.getValue(SettingType.closeToTray),
+        theme,
+        syncJupyterLabTheme,
+        showNewsFeed,
+        checkForUpdatesAutomatically,
+        installUpdatesAutomaticallyEnabled,
+        installUpdatesAutomatically,
+        notifyOnBundledEnvUpdates,
+        updateBundledEnvAutomatically,
+        defaultWorkingDirectory,
+        logLevel,
+        serverArgs,
+        overrideDefaultServerArgs,
+        serverEnvVars: strServerEnvVars,
+        ctrlWBehavior,
+        cliCommandIsSetup,
+        uiMode,
+        uiModeForSingleFileOpen,
+        showTOCInZenMode
+      })
+    );
   }
 
   get window(): BrowserWindow {

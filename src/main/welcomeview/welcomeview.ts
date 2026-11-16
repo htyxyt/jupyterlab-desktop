@@ -1,3 +1,4 @@
+import { translateHtml, translationObserverScript } from '../i18n';
 // Copyright (c) Jupyter Development Team.
 // Distributed under the terms of the Modified BSD License.
 
@@ -716,6 +717,10 @@ export class WelcomeView {
   }
 
   load() {
+    this._pageSource = translateHtml(this._pageSource).replace(
+      '</body>',
+      translationObserverScript() + '</body>'
+    );
     this._view.webContents.loadURL(
       `data:text/html;charset=utf-8,${encodeURIComponent(this._pageSource)}`
     );

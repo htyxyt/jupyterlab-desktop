@@ -1,3 +1,4 @@
+import { translateText } from '../i18n';
 // Copyright (c) Jupyter Development Team.
 // Distributed under the terms of the Modified BSD License.
 
@@ -18,10 +19,14 @@ export class UpdateDialog {
 
     const message =
       options.type === 'error'
-        ? 'Error occurred while checking for updates!'
+        ? translateText('update.error')
         : options.type === 'no-updates'
-        ? 'There are no updates available.'
-        : `There is a new version available. Download the latest version from <a href="javascript:void(0)" onclick='handleReleasesLink(this);'>the Releases page</a>.`;
+        ? translateText('update.none')
+        : translateText('update.available', {
+            link: `<a href="javascript:void(0)" onclick='handleReleasesLink(this);'>${ejs.escapeXML(
+              translateText('update.releases')
+            )}</a>`
+          });
 
     const template = `
       <style>

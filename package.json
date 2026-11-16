@@ -69,7 +69,10 @@
     "files": [
       "!**/*.d.ts",
       "!env_installer",
-      "!workflow_env"
+      "!workflow_env",
+      "!dist/**",
+      "!dist-*/**",
+      "!interface-inventory.txt"
     ],
     "extraResources": [
       "env_installer/jlab_server.tar.gz",

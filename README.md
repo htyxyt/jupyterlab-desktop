@@ -1,9 +1,13 @@
+[简体中文](README.zh-CN.md) | English
+
 **[Installation](#installation)** |
 **[User guide](user-guide.md)** |
 **[Contributing](#contributing)** |
 **[Getting help](#getting-help)**
 
 # JupyterLab Desktop
+
+> This fork adds a Simplified Chinese desktop interface and an optional close-to-tray feature. See the [Chinese README](README.zh-CN.md). Upstream installers linked below do not include these fork-specific changes.
 
 [![Release](https://img.shields.io/github/v/release/jupyterlab/jupyterlab-desktop)](https://github.com/jupyterlab/jupyterlab-desktop/releases/latest)
 [![Snap Store](https://snapcraft.io/jupyterlab-desktop/badge.svg)](https://snapcraft.io/jupyterlab-desktop)

@@ -1,3 +1,8 @@
+import {
+  translateHtml,
+  translateText,
+  translationObserverScript
+} from '../i18n';
 // Copyright (c) Jupyter Development Team.
 // Distributed under the terms of the Modified BSD License.
 
@@ -14,7 +19,7 @@ export class ThemedWindow {
     this._window = new BrowserWindow({
       parent: options.parent,
       modal: options.modal,
-      title: options.title,
+      title: translateText(options.title),
       width: options.width,
       height: options.height,
       show: false,
@@ -131,9 +136,10 @@ export class ThemedWindow {
       this._isDarkTheme ? 'app-ui-dark' : ''
     }"></jlab-dialog-titlebar>
             <div id="jlab-dialog-body" class="jlab-dialog-body">
-            ${bodyHtml}
+            ${translateHtml(bodyHtml)}
             </div>
           </div>
+        ${translationObserverScript()}
         </body>
       </html>
       `;

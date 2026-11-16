@@ -1,3 +1,4 @@
+import { translateText } from './i18n';
 import { ChildProcess, execFile } from 'child_process';
 import { IRegistry, SERVER_TOKEN_PREFIX } from './registry';
 import { dialog, ipcMain } from 'electron';
@@ -241,7 +242,7 @@ export class JupyterServer {
 
           if (!condaPath) {
             const choice = dialog.showMessageBoxSync({
-              message: 'conda not found',
+              message: translateText('conda not found'),
               detail:
                 'conda executable not found. Please set conda path in settings to use the conda sub environment.',
               type: 'error',

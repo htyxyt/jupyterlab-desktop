@@ -1,3 +1,4 @@
+import { translateHtml, translateText } from '../i18n';
 // Copyright (c) Jupyter Development Team.
 // Distributed under the terms of the Modified BSD License.
 
@@ -154,8 +155,8 @@ export class ProgressView {
     this._viewReady.then(() => {
       this._view.view.webContents.send(
         EventTypeRenderer.ShowProgress,
-        title,
-        detail,
+        translateText(title),
+        translateHtml(detail),
         showAnimation
       );
     });

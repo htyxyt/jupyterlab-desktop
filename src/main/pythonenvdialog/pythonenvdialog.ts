@@ -1,3 +1,4 @@
+import { translateHtml, translateText } from '../i18n';
 // Copyright (c) Jupyter Development Team.
 // Distributed under the terms of the Modified BSD License.
 
@@ -40,7 +41,7 @@ export class ManagePythonEnvironmentDialog {
     this._app = options.app;
     this._window = new ThemedWindow({
       isDarkTheme: options.isDarkTheme,
-      title: 'Manage Python environments',
+      title: translateText('Manage Python environments'),
       width: 800,
       height: 600,
       preload: path.join(__dirname, './preload.js')
@@ -100,13 +101,13 @@ export class ManagePythonEnvironmentDialog {
             : 'Open in Explorer';
         const envMenuTemplate: MenuItemConstructorOptions[] = [
           {
-            label: 'Copy Python path',
+            label: translateText('Copy Python path'),
             click: () => {
               clipboard.writeText(pythonPath);
             }
           },
           {
-            label: 'Copy environment info',
+            label: translateText('Copy environment info'),
             click: () => {
               const env = this._app.registry.getEnvironmentByPath(pythonPath);
               if (env) {
@@ -125,7 +126,7 @@ export class ManagePythonEnvironmentDialog {
             }
           },
           {
-            label: 'Launch Terminal',
+            label: translateText('Launch Terminal'),
             click: () => {
               const condaPath = getCondaPath() || '';
               const condaEnvPath = condaEnvPathForCondaExePath(condaPath);
@@ -143,10 +144,10 @@ export class ManagePythonEnvironmentDialog {
             }
           },
           {
-            label: 'Launch JupyterLab Web App',
+            label: translateText('Launch JupyterLab Web App'),
             click: async () => {
               const { filePaths } = await dialog.showOpenDialog({
-                title: 'Choose working directory',
+                title: translateText('Choose working directory'),
                 properties: [
                   'showHiddenFiles',
                   'noResolveAliases',
@@ -192,16 +193,16 @@ export class ManagePythonEnvironmentDialog {
         const deletableEnvMenuItems: MenuItemConstructorOptions[] = [
           { type: 'separator' },
           {
-            label: 'Delete',
+            label: translateText('Delete'),
             click: async () => {
               const envPath = envPathForPythonPath(pythonPath);
               const envName = path.basename(envPath);
 
               const choice = dialog.showMessageBoxSync({
                 type: 'warning',
-                message: `Delete environment`,
-                detail: `Are you sure you want to delete "${envName}"?`,
-                buttons: ['Delete', 'Cancel'],
+                message: translateText('Delete environment'),
+                detail: translateText('env.confirmDelete', { name: envName }),
+                buttons: [translateText('Delete'), translateText('Cancel')],
                 defaultId: 1,
                 cancelId: 1
               });
@@ -1150,7 +1151,9 @@ export class ManagePythonEnvironmentDialog {
         }
 
         function handleNewEnvNameInputChange() {
-          envInstallPathLabel.innerText = \`Installation path: "\$\{getEnvInstallPath()\}"\`;
+          envInstallPathLabel.innerText = \`${translateText(
+            'Installation path'
+          )}: "\$\{getEnvInstallPath()\}"\`;
           updateCreateCommandPreview();
           validateNameInput();
         }
@@ -1350,18 +1353,20 @@ export class ManagePythonEnvironmentDialog {
         });
       </script>
     `;
-    this._pageBody = ejs.render(template, {
-      envs: options.envs,
-      defaultPythonPath,
-      selectBundledPythonPath,
-      bundledEnvInstallationExists,
-      bundledEnvInstallationLatest,
-      pythonEnvName,
-      pythonEnvInstallPath,
-      condaPath,
-      condaChannels,
-      systemPythonPath
-    });
+    this._pageBody = translateHtml(
+      ejs.render(template, {
+        envs: options.envs,
+        defaultPythonPath,
+        selectBundledPythonPath,
+        bundledEnvInstallationExists,
+        bundledEnvInstallationLatest,
+        pythonEnvName,
+        pythonEnvInstallPath,
+        condaPath,
+        condaChannels,
+        systemPythonPath
+      })
+    );
   }
 
   get window(): BrowserWindow {

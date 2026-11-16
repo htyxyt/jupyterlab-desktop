@@ -61,6 +61,8 @@ export enum SettingType {
   serverEnvVars = 'serverEnvVars',
 
   startupMode = 'startupMode',
+  closeToTray = 'closeToTray',
+  language = 'language',
 
   ctrlWBehavior = 'ctrlWBehavior',
 
@@ -162,6 +164,8 @@ export class UserSettings {
       serverEnvVars: new Setting<KeyValueMap>({}, { wsOverridable: true }),
 
       startupMode: new Setting<StartupMode>(StartupMode.WelcomePage),
+      closeToTray: new Setting<boolean>(false),
+      language: new Setting<string>('en'),
 
       ctrlWBehavior: new Setting<CtrlWBehavior>(CtrlWBehavior.CloseTab),
 

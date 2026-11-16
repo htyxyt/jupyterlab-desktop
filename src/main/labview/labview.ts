@@ -1,3 +1,4 @@
+import { translateText } from '../i18n';
 // Copyright (c) Jupyter Development Team.
 // Distributed under the terms of the Modified BSD License.
 
@@ -116,7 +117,7 @@ export class LabView implements IDisposable {
           } else if (ctrlWBehavior === CtrlWBehavior.Warn) {
             const choice = dialog.showMessageBoxSync({
               type: 'warning',
-              message: 'Do you want to close the session?',
+              message: translateText('Do you want to close the session?'),
               buttons: ['Close session', 'Cancel'],
               defaultId: 1,
               cancelId: 1
@@ -499,7 +500,7 @@ export class LabView implements IDisposable {
         }
         if (params.linkURL) {
           template.push({
-            label: 'Copy link URL',
+            label: translateText('Copy link URL'),
             click: () => {
               clipboard.writeText(params.linkURL);
             }
@@ -507,7 +508,7 @@ export class LabView implements IDisposable {
         }
         if (params.hasImageContents) {
           template.push({
-            label: 'Copy image',
+            label: translateText('Copy image'),
             click: () => {
               this._view.webContents.copyImageAt(params.x, params.y);
             }

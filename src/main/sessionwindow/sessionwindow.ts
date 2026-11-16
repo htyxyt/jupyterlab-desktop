@@ -1,3 +1,4 @@
+import { translateText } from '../i18n';
 // Copyright (c) Jupyter Development Team.
 // Distributed under the terms of the Modified BSD License.
 
@@ -542,7 +543,11 @@ export class SessionWindow implements IDisposable {
       this
     );
 
-    this._window.on('close', async () => {
+    this._window.on('close', async event => {
+      if (this._app.hideWindowToTray(this._window)) {
+        event.preventDefault();
+        return;
+      }
       await this.dispose();
     });
 
@@ -945,14 +950,14 @@ export class SessionWindow implements IDisposable {
 
       const uiModeSubmenu: MenuItemConstructorOptions[] = [
         {
-          label: 'UI Mode',
+          label: translateText('UI Mode'),
           visible:
             this._contentViewType === ContentViewType.Lab &&
             !this._progressViewVisible,
           type: 'submenu',
           submenu: [
             {
-              label: 'Zen Mode',
+              label: translateText('Zen Mode'),
               click: () => {
                 this._setUIMode(UIMode.Zen);
               },
@@ -962,7 +967,7 @@ export class SessionWindow implements IDisposable {
                 this._labView.uiMode === UIMode.Zen
             },
             {
-              label: 'Single document IDE',
+              label: translateText('Single document IDE'),
               click: () => {
                 this._setUIMode(UIMode.SingleDocument);
               },
@@ -972,7 +977,7 @@ export class SessionWindow implements IDisposable {
                 this._labView.uiMode === UIMode.SingleDocument
             },
             {
-              label: 'Multi document IDE',
+              label: translateText('Multi document IDE'),
               click: () => {
                 this._setUIMode(UIMode.MultiDocument);
               },
@@ -982,7 +987,7 @@ export class SessionWindow implements IDisposable {
                 this._labView.uiMode === UIMode.MultiDocument
             },
             {
-              label: 'Managed by web app',
+              label: translateText('Managed by web app'),
               click: () => {
                 this._setUIMode(UIMode.ManagedByWebApp);
               },
@@ -993,7 +998,7 @@ export class SessionWindow implements IDisposable {
             },
             { type: 'separator' },
             {
-              label: 'Reset to session default',
+              label: translateText('menu.resetMode'),
               click: () => {
                 this._resetUIModeToSessionDefault();
               }
@@ -1004,7 +1009,7 @@ export class SessionWindow implements IDisposable {
 
       const closeSessionMenuItem: MenuItemConstructorOptions[] = [
         {
-          label: 'Close Session',
+          label: translateText('menu.closeSession'),
           click: () => {
             this._closeSession();
           }
@@ -1014,7 +1019,7 @@ export class SessionWindow implements IDisposable {
 
       const template: MenuItemConstructorOptions[] = [
         {
-          label: 'New Window',
+          label: translateText('menu.newWindow'),
           click: () => {
             this._newWindow();
           }
@@ -1023,25 +1028,25 @@ export class SessionWindow implements IDisposable {
         { type: 'separator' },
         ...(inSession ? closeSessionMenuItem : []),
         {
-          label: 'Settings',
+          label: translateText('Settings'),
           click: () => {
             this._app.showSettingsDialog();
           }
         },
         {
-          label: 'Manage Python environments',
+          label: translateText('Manage Python environments'),
           click: () => {
             this._app.showManagePythonEnvsDialog();
           }
         },
         {
-          label: 'Check for updates…',
+          label: translateText('menu.checkUpdates'),
           click: () => {
             this._app.checkForUpdates('always');
           }
         },
         {
-          label: 'Open Developer Tools',
+          label: translateText('menu.devTools'),
           visible:
             this._contentViewType === ContentViewType.Lab ||
             process.env.NODE_ENV === 'development',
@@ -1051,7 +1056,7 @@ export class SessionWindow implements IDisposable {
         },
         { type: 'separator' },
         {
-          label: 'About',
+          label: translateText('menu.about'),
           click: () => {
             this._app.showAboutDialog();
           }
@@ -1303,8 +1308,8 @@ export class SessionWindow implements IDisposable {
       }
       this._loadWelcomeView();
 
-      this.titleBarView.setTitle('Welcome');
-      this._window.setTitle('Welcome');
+      this.titleBarView.setTitle(translateText('Welcome'));
+      this._window.setTitle(translateText('Welcome'));
     } else {
       if (this._welcomeView) {
         this._window.contentView.removeChildView(this._welcomeView.view);
@@ -1514,7 +1519,7 @@ export class SessionWindow implements IDisposable {
       // TODO: this shouldn't happen anymore since sessions are launched in new empty window. remove after testing
       const choice = dialog.showMessageBoxSync({
         type: 'warning',
-        message: 'Replace existing session',
+        message: translateText('Replace existing session'),
         detail:
           'Opening a new JupyterLab session will close the existing one. Would you like to continue?',
         buttons: ['Continue', 'Cancel'],
@@ -1558,7 +1563,7 @@ export class SessionWindow implements IDisposable {
         // TODO: this shouldn't happen anymore since sessions are launched in new empty window. remove after testing
         const choice = dialog.showMessageBoxSync({
           type: 'warning',
-          message: 'Replace existing session',
+          message: translateText('Replace existing session'),
           detail:
             'Opening the files will close the existing JupyterLab session. Would you like to continue?',
           buttons: ['Open', 'Cancel'],

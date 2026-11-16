@@ -1,3 +1,4 @@
+import { translateText } from './i18n';
 // Copyright (c) Jupyter Development Team.
 // Distributed under the terms of the Modified BSD License.
 
@@ -7,16 +8,20 @@ import {
   autoUpdater,
   BrowserWindow,
   dialog,
+  Menu,
+  nativeImage,
   net,
-  Session,
   session,
-  shell
+  Session,
+  shell,
+  Tray
 } from 'electron';
 import log from 'electron-log';
 import { IRegistry, Registry } from './registry';
 import * as yaml from 'js-yaml';
 import * as semver from 'semver';
 import * as fs from 'fs';
+import * as path from 'path';
 import {
   bundledEnvironmentIsInstalled,
   clearSession,
@@ -72,6 +77,7 @@ import {
 } from './env';
 
 export interface IApplication {
+  hideWindowToTray(window: BrowserWindow): boolean;
   createNewEmptySession(): void;
   createFreeServersIfNeeded(): void;
   checkForUpdates(showDialog: 'on-new-version' | 'always'): void;
@@ -201,6 +207,7 @@ class SessionWindowManager implements IDisposable {
     window.sessionConfigChanged.connect(this.syncSessionData, this);
 
     window.window.on('close', async event => {
+      if (event.defaultPrevented) return;
       const index = this._windows.indexOf(window);
       if (index !== -1) {
         window.sessionConfigChanged.disconnect(this.syncSessionData, this);
@@ -313,6 +320,43 @@ export class JupyterApplication implements IApplication, IDisposable {
     this._isDarkTheme = isDarkTheme(userSettings.getValue(SettingType.theme));
 
     this.startup();
+  }
+
+  hideWindowToTray(window: BrowserWindow): boolean {
+    if (this._isQuitting || !userSettings.getValue(SettingType.closeToTray))
+      return false;
+    try {
+      if (!this._tray) {
+        this._tray = new Tray(
+          nativeImage
+            .createFromPath(
+              path.join(__dirname, '../../app-assets/tray-icon.png')
+            )
+            .resize({ width: 32, height: 32 })
+        );
+        this._tray.setToolTip('JupyterLab');
+        const restore = () => {
+          this._sessionWindowManager.windows.forEach(session => {
+            if (!session.window.isDestroyed()) {
+              session.window.show();
+              session.window.focus();
+            }
+          });
+        };
+        this._tray.setContextMenu(
+          Menu.buildFromTemplate([
+            { label: translateText('tray.show'), click: restore },
+            { label: translateText('tray.quit'), click: () => app.quit() }
+          ])
+        );
+        this._tray.on('click', restore);
+      }
+      window.hide();
+      return true;
+    } catch (error) {
+      console.error('Failed to create tray icon', error);
+      return false;
+    }
   }
 
   createNewEmptySession() {
@@ -551,7 +595,7 @@ export class JupyterApplication implements IApplication, IDisposable {
         const dialogOpts: Electron.MessageBoxOptions = {
           type: 'info',
           buttons: ['Restart', 'Later'],
-          title: 'Application Update',
+          title: translateText('Application Update'),
           message: process.platform === 'win32' ? releaseNotes : releaseName,
           detail:
             'A new version has been downloaded. Restart the application to apply the updates.'
@@ -706,6 +750,9 @@ export class JupyterApplication implements IApplication, IDisposable {
       }
     });
 
+    app.on('before-quit', () => {
+      this._isQuitting = true;
+    });
     app.on('will-quit', event => {
       event.preventDefault();
       appData.save();
@@ -857,7 +904,7 @@ export class JupyterApplication implements IApplication, IDisposable {
             return new Promise<boolean>(resolve => {
               const choice = dialog.showMessageBoxSync({
                 type: 'warning',
-                message: 'Do you want to overwrite?',
+                message: translateText('Do you want to overwrite?'),
                 detail: `Install path (${installPath}) is not empty. Would you like to overwrite it?`,
                 buttons: ['Overwrite', 'Cancel'],
                 defaultId: 1,
@@ -883,7 +930,7 @@ export class JupyterApplication implements IApplication, IDisposable {
       async event => {
         const choice = dialog.showMessageBoxSync({
           type: 'warning',
-          message: 'Update bundled environment',
+          message: translateText('Update bundled environment'),
           detail:
             'App will restart and the existing environment installation will be deleted before the update. Would you like to continue?',
           buttons: ['Update', 'Cancel'],
@@ -1389,6 +1436,8 @@ export class JupyterApplication implements IApplication, IDisposable {
       });
   }
 
+  private _tray: Tray;
+  private _isQuitting = false;
   private _cliArgs: ICLIArguments;
   private _registry: IRegistry;
   private _serverFactory: JupyterServerFactory;

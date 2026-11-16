@@ -31,3 +31,7 @@ __pycache__
 env_installer/jlab_server/
 env_installer/jlab_server.tar.gz
 
+
+# Local preview builds and temporary UI inventory
+dist-*/
+/interface-inventory.txt
