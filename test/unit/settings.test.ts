@@ -165,8 +165,11 @@ describe('UserSettings', () => {
     const us = new UserSettings(false);
     expect(us.getValue(SettingType.language)).toBe('zh-CN');
     expect(us.getValue(SettingType.closeToTray)).toBe(true);
+    expect(us.getValue(SettingType.showNewsFeed)).toBe(false);
     expect(us.getValue(SettingType.checkForUpdatesAutomatically)).toBe(false);
     expect(us.getValue(SettingType.installUpdatesAutomatically)).toBe(false);
+    us.setValue(SettingType.showNewsFeed, true);
+    expect(us.getValue(SettingType.showNewsFeed)).toBe(true);
     us.setValue(SettingType.language, 'en');
     us.setValue(SettingType.closeToTray, false);
     expect(us.getValue(SettingType.language)).toBe('en');

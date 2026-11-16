@@ -7,7 +7,7 @@
 ## 功能
 
 - **中文界面**：欢迎页、设置、Python 环境管理及部分提示和对话框已适配简体中文。可以在设置中切换简体中文和英文，少量内容仍可能显示英文。
-- **最小化到托盘**：关闭窗口时可选择直接关闭或最小化到系统托盘。通过托盘图标可以恢复窗口或退出程序。
+- **系统托盘**：程序运行时显示托盘图标。关闭窗口时可选择直接关闭或最小化到系统托盘；通过托盘图标可以恢复窗口或退出程序。
 - **已有 Python 环境**：可以选择本机已有的 Python 环境，包括通过 uv 创建的虚拟环境。
 - **多语言资源**：桌面界面的语言文件位于 [`src/main/locales`](src/main/locales)，扩展方法见[语言资源说明](src/main/locales/README.md)。
 
@@ -15,9 +15,9 @@
 
 目前本仓库提供 **Windows x64 自解压包**：
 
-[下载 JupyterLab Desktop 中文适配版](https://github.com/htyxyt/jupyterlab-desktop/releases/download/v4.6.4-2-cn/JupyterLab-Desktop-CN-4.6.4-2-Windows-x64-SFX.exe) · [查看发布说明](https://github.com/htyxyt/jupyterlab-desktop/releases/tag/v4.6.4-2-cn)
+[下载 JupyterLab Desktop 中文适配版](https://github.com/htyxyt/jupyterlab-desktop/releases/download/v4.6.4-3-cn/JupyterLab-Desktop-CN-4.6.4-3-Windows-x64-SFX.exe) · [查看发布说明](https://github.com/htyxyt/jupyterlab-desktop/releases/tag/v4.6.4-3-cn)
 
-双击下载的文件，选择解压目录；解压完成后运行目录中的 `JupyterLab.exe`。请保留目录里的其他文件。这个自解压包不是安装程序，也没有内置 Python 环境。程序未签名，Windows 可能提示发布者未知。
+双击下载的文件并选择解压位置；解压后进入自动创建的 `JupyterLab-Desktop-CN` 文件夹，运行其中的 `JupyterLab.exe`。请保留目录里的其他文件。这个自解压包不是安装程序，也没有内置 Python 环境。程序未签名，Windows 可能提示发布者未知。
 
 本仓库目前没有发布 macOS、Linux 或 Windows ARM64 构建。
 
@@ -35,6 +35,7 @@
 
 - 默认使用简体中文；可在**语言**处选择 English 或简体中文，点击**应用并重启**生效。
 - **关闭窗口时**默认选择**最小化到托盘**，也可改为**直接关闭**。
+- 欢迎页默认不显示新闻，可在**新闻**设置中启用。
 - 默认关闭自动检查和自动安装更新；可在**高级**设置中修改，或手动检查本仓库的发布版本。
 
 ## 从源码构建

@@ -296,6 +296,7 @@ export class JupyterApplication implements IApplication, IDisposable {
       console.error('Failed to create free server', error);
     });
     this._registerListeners();
+    this._ensureTray();
 
     if (
       userSettings.getValue(SettingType.checkForUpdatesAutomatically) !== false
@@ -321,19 +322,18 @@ export class JupyterApplication implements IApplication, IDisposable {
     this.startup();
   }
 
-  hideWindowToTray(window: BrowserWindow): boolean {
-    if (this._isQuitting || !userSettings.getValue(SettingType.closeToTray))
-      return false;
+  private _ensureTray(): boolean {
+    if (this._tray) return true;
     try {
-      if (!this._tray) {
-        this._tray = new Tray(
-          nativeImage
-            .createFromPath(
-              path.join(__dirname, '../../app-assets/tray-icon.png')
-            )
-            .resize({ width: 32, height: 32 })
-        );
-        this._tray.setToolTip('JupyterLab');
+      const tray = new Tray(
+        nativeImage
+          .createFromPath(
+            path.join(__dirname, '../../app-assets/tray-icon.png')
+          )
+          .resize({ width: 32, height: 32 })
+      );
+      try {
+        tray.setToolTip('JupyterLab');
         const restore = () => {
           this._sessionWindowManager.windows.forEach(session => {
             if (!session.window.isDestroyed()) {
@@ -342,20 +342,31 @@ export class JupyterApplication implements IApplication, IDisposable {
             }
           });
         };
-        this._tray.setContextMenu(
+        tray.setContextMenu(
           Menu.buildFromTemplate([
             { label: translateText('tray.show'), click: restore },
             { label: translateText('tray.quit'), click: () => app.quit() }
           ])
         );
-        this._tray.on('click', restore);
+        tray.on('click', restore);
+        this._tray = tray;
+      } catch (error) {
+        tray.destroy();
+        throw error;
       }
-      window.hide();
       return true;
     } catch (error) {
       console.error('Failed to create tray icon', error);
       return false;
     }
+  }
+
+  hideWindowToTray(window: BrowserWindow): boolean {
+    if (this._isQuitting || !userSettings.getValue(SettingType.closeToTray))
+      return false;
+    if (!this._ensureTray()) return false;
+    window.hide();
+    return true;
   }
 
   createNewEmptySession() {
