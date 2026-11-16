@@ -141,8 +141,8 @@ export namespace Setting {
 export class UserSettings {
   constructor(readSettings: boolean = true) {
     this._settings = {
-      checkForUpdatesAutomatically: new Setting<boolean>(true),
-      installUpdatesAutomatically: new Setting<boolean>(true),
+      checkForUpdatesAutomatically: new Setting<boolean>(false),
+      installUpdatesAutomatically: new Setting<boolean>(false),
       notifyOnBundledEnvUpdates: new Setting<boolean>(true),
       updateBundledEnvAutomatically: new Setting<boolean>(false),
       showNewsFeed: new Setting<boolean>(true),
@@ -164,8 +164,8 @@ export class UserSettings {
       serverEnvVars: new Setting<KeyValueMap>({}, { wsOverridable: true }),
 
       startupMode: new Setting<StartupMode>(StartupMode.WelcomePage),
-      closeToTray: new Setting<boolean>(false),
-      language: new Setting<string>('en'),
+      closeToTray: new Setting<boolean>(true),
+      language: new Setting<string>('zh-CN'),
 
       ctrlWBehavior: new Setting<CtrlWBehavior>(CtrlWBehavior.CloseTab),
 

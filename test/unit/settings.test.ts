@@ -161,6 +161,17 @@ describe('Setting', () => {
 });
 
 describe('UserSettings', () => {
+  it('defaults to Chinese, tray on close, and no automatic updates', () => {
+    const us = new UserSettings(false);
+    expect(us.getValue(SettingType.language)).toBe('zh-CN');
+    expect(us.getValue(SettingType.closeToTray)).toBe(true);
+    expect(us.getValue(SettingType.checkForUpdatesAutomatically)).toBe(false);
+    expect(us.getValue(SettingType.installUpdatesAutomatically)).toBe(false);
+    us.setValue(SettingType.language, 'en');
+    us.setValue(SettingType.closeToTray, false);
+    expect(us.getValue(SettingType.language)).toBe('en');
+    expect(us.getValue(SettingType.closeToTray)).toBe(false);
+  });
   it('getValue returns the default before any change', () => {
     const us = new UserSettings(false);
     expect(us.getValue(SettingType.theme)).toBe(ThemeType.System);

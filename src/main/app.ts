@@ -2,7 +2,7 @@ import { translateText } from './i18n';
 // Copyright (c) Jupyter Development Team.
 // Distributed under the terms of the Modified BSD License.
 
-import { updateElectronApp } from 'update-electron-app';
+import { updateElectronApp, UpdateSourceType } from 'update-electron-app';
 import {
   app,
   autoUpdater,
@@ -18,7 +18,6 @@ import {
 } from 'electron';
 import log from 'electron-log';
 import { IRegistry, Registry } from './registry';
-import * as yaml from 'js-yaml';
 import * as semver from 'semver';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -623,7 +622,12 @@ export class JupyterApplication implements IApplication, IDisposable {
       log.error(message);
     });
 
-    updateElectronApp();
+    updateElectronApp({
+      updateSource: {
+        type: UpdateSourceType.ElectronPublicUpdateService,
+        repo: 'htyxyt/jupyterlab-desktop'
+      }
+    });
   }
 
   /**
@@ -782,7 +786,7 @@ export class JupyterApplication implements IApplication, IDisposable {
       EventTypeMain.LaunchInstallerDownloadPage,
       () => {
         shell.openExternal(
-          'https://github.com/jupyterlab/jupyterlab-desktop/releases'
+          'https://github.com/htyxyt/jupyterlab-desktop/releases'
         );
       }
     );
@@ -1388,17 +1392,23 @@ export class JupyterApplication implements IApplication, IDisposable {
   checkForUpdates(showDialog: 'on-new-version' | 'always') {
     net
       .fetch(
-        'https://github.com/jupyterlab/jupyterlab-desktop/releases/latest/download/latest.yml',
-        { cache: 'no-store' }
+        'https://api.github.com/repos/htyxyt/jupyterlab-desktop/releases/latest',
+        {
+          cache: 'no-store',
+          headers: { Accept: 'application/vnd.github+json' }
+        }
       )
       .then(async response => {
         try {
           if (!response.ok) {
             throw new Error(`Update check failed: ${response.status}`);
           }
-          const data = await response.text();
-          const latestReleaseData = yaml.load(data);
-          const latestVersion = (latestReleaseData as any).version;
+          const latestReleaseData = await response.json();
+          const releaseTag = latestReleaseData?.tag_name;
+          const latestVersion =
+            typeof releaseTag === 'string'
+              ? releaseTag.replace(/^v/, '').replace(/-cn$/i, '')
+              : undefined;
           if (!latestVersion || !semver.valid(latestVersion)) {
             throw new Error('No valid version in update metadata');
           }

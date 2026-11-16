@@ -166,10 +166,10 @@
     "url": "http://jupyter.org"
   },
   "bugs": {
-    "url": "https://github.com/jupyterlab/jupyterlab-desktop/issues"
+    "url": "https://github.com/htyxyt/jupyterlab-desktop/issues"
   },
-  "homepage": "https://github.com/jupyterlab/jupyterlab-desktop#readme",
-  "repository": "https://github.com/jupyterlab/jupyterlab-desktop",
+  "homepage": "https://github.com/htyxyt/jupyterlab-desktop#readme",
+  "repository": "https://github.com/htyxyt/jupyterlab-desktop",
   "license": "BSD-3-Clause",
   "devDependencies": {
     "@electron/fuses": "^2.1.1",

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { net } from '../setup/electron-stub';
+import { app as electronApp, net } from '../setup/electron-stub';
 import { JupyterApplication } from '../../src/main/app';
 
 // checkForUpdates is a method on the large JupyterApplication class whose
@@ -38,5 +38,44 @@ describe('JupyterApplication.checkForUpdates', () => {
     expect(text).not.toHaveBeenCalled();
     expect(showUpdateDialog).toHaveBeenCalledWith('error');
     expect(showUpdateDialog).not.toHaveBeenCalledWith('updates-available');
+  });
+  it('checks the fork release and treats its current Chinese tag as the same version', async () => {
+    const { app, showUpdateDialog } = makeApp();
+    electronApp.getVersion.mockReturnValueOnce('4.6.4-1');
+    (net.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({ tag_name: 'v4.6.4-1-cn' })
+    });
+    app.checkForUpdates('always');
+    await vi.waitFor(() =>
+      expect(showUpdateDialog).toHaveBeenCalledWith('no-updates')
+    );
+    expect(net.fetch).toHaveBeenCalledWith(
+      'https://api.github.com/repos/htyxyt/jupyterlab-desktop/releases/latest',
+      expect.any(Object)
+    );
+  });
+  it('reports a newer fork release', async () => {
+    const { app, showUpdateDialog } = makeApp();
+    electronApp.getVersion.mockReturnValueOnce('4.6.4-1');
+    (net.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({ tag_name: 'v4.6.4-2-cn' })
+    });
+    app.checkForUpdates('always');
+    await vi.waitFor(() =>
+      expect(showUpdateDialog).toHaveBeenCalledWith('updates-available')
+    );
+  });
+  it('reports malformed release tags as errors', async () => {
+    const { app, showUpdateDialog } = makeApp();
+    (net.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({ tag_name: 'not-a-version' })
+    });
+    app.checkForUpdates('always');
+    await vi.waitFor(() =>
+      expect(showUpdateDialog).toHaveBeenCalledWith('error')
+    );
   });
 });
