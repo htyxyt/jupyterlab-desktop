@@ -1,107 +1,61 @@
-[简体中文](README.zh-CN.md) | English
+# JupyterLab Desktop 中文适配版
 
-**[Installation](#installation)** |
-**[User guide](user-guide.md)** |
-**[Contributing](#contributing)** |
-**[Getting help](#getting-help)**
+[![GitHub Release](https://img.shields.io/github/v/release/htyxyt/jupyterlab-desktop)](https://github.com/htyxyt/jupyterlab-desktop/releases)
 
-# JupyterLab Desktop
+本项目是 JupyterLab Desktop 的中文适配版本，将 JupyterLab 的笔记本界面与 Python 环境管理功能整合到桌面应用中。
 
-> This fork adds a Simplified Chinese desktop interface and an optional close-to-tray feature. See the [Chinese README](README.zh-CN.md). Upstream installers linked below do not include these fork-specific changes.
+## 功能
 
-[![Release](https://img.shields.io/github/v/release/jupyterlab/jupyterlab-desktop)](https://github.com/jupyterlab/jupyterlab-desktop/releases/latest)
-[![Snap Store](https://snapcraft.io/jupyterlab-desktop/badge.svg)](https://snapcraft.io/jupyterlab-desktop)
-[![E2E](https://github.com/jupyterlab/jupyterlab-desktop/actions/workflows/e2e.yml/badge.svg?branch=master)](https://github.com/jupyterlab/jupyterlab-desktop/actions/workflows/e2e.yml?query=branch%3Amaster)
-[![Type check](https://github.com/jupyterlab/jupyterlab-desktop/actions/workflows/typecheck.yml/badge.svg?branch=master)](https://github.com/jupyterlab/jupyterlab-desktop/actions/workflows/typecheck.yml?query=branch%3Amaster)
+- **中文界面**：欢迎页、设置、Python 环境管理及部分提示和对话框已适配简体中文。可以在设置中切换简体中文和英文，少量内容仍可能显示英文。
+- **最小化到托盘**：关闭窗口时可选择直接关闭或最小化到系统托盘。通过托盘图标可以恢复窗口或退出程序。
+- **已有 Python 环境**：可以选择本机已有的 Python 环境，包括通过 uv 创建的虚拟环境。
+- **多语言资源**：桌面界面的语言文件位于 [`src/main/locales`](src/main/locales)，扩展方法见[语言资源说明](src/main/locales/README.md)。
 
-JupyterLab Desktop is the cross-platform desktop application for [JupyterLab](https://github.com/jupyterlab/jupyterlab). It is the quickest and easiest way to get started with Jupyter notebooks on your personal computer, with the flexibility for advanced use cases.
+## 下载
 
-![JupyterLab Desktop](media/jupyterlab-desktop.png)
+目前本仓库提供 **Windows x64 自解压包**：
 
-## Installation
+[下载 JupyterLab Desktop 中文适配版](https://github.com/htyxyt/jupyterlab-desktop/releases/download/v4.6.4-1-cn/JupyterLab-Desktop-CN-4.6.4-1-Windows-x64-SFX.exe) · [查看发布说明](https://github.com/htyxyt/jupyterlab-desktop/releases/tag/v4.6.4-1-cn)
 
-Install JupyterLab Desktop using one of the methods listed below for your system.
+双击下载的文件，选择解压目录；解压完成后运行目录中的 `JupyterLab.exe`。请保留目录里的其他文件。这个自解压包不是安装程序，也没有内置 Python 环境。程序未签名，Windows 可能提示发布者未知。
 
-| Windows (10, 11)                                                                                                            | Mac (macOS 12+)                                                                                                                               | Linux (Ubuntu 18.04+, Fedora 32+, Debian 10+)                                                                                                           |
-| --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [x64 Installer](https://github.com/jupyterlab/jupyterlab-desktop/releases/latest/download/JupyterLab-Setup-Windows-x64.exe) | [arm64 Installer (Apple silicon)](https://github.com/jupyterlab/jupyterlab-desktop/releases/latest/download/JupyterLab-Setup-macOS-arm64.dmg) | [Snap Store [recommended]](https://snapcraft.io/jupyterlab-desktop)                                                                                     |
-|                                                                                                                             | [x64 Installer (Intel chip)](https://github.com/jupyterlab/jupyterlab-desktop/releases/latest/download/JupyterLab-Setup-macOS-x64.dmg)        | [.deb x64 Installer (Debian, Ubuntu)](https://github.com/jupyterlab/jupyterlab-desktop/releases/latest/download/JupyterLab-Setup-Debian-x64.deb)        |
-|                                                                                                                             |                                                                                                                                               | [.rpm x64 Installer (Red Hat, Fedora, SUSE)](https://github.com/jupyterlab/jupyterlab-desktop/releases/latest/download/JupyterLab-Setup-Fedora-x64.rpm) |
+本仓库目前没有发布 macOS、Linux 或 Windows ARM64 构建。
 
-Additionally, JupyterLab Desktop can be installed on Windows via winget: `winget install jupyterlab`.
+## 配置 Python 环境
 
-If you need to remove a previous JupyterLab Desktop installation, please follow the [uninstall instructions](user-guide.md#uninstalling-jupyterlab-desktop).
+1. 准备一个安装了 JupyterLab 的 Python 环境。若需要在 Notebook 中使用该环境的 Python 内核，也请安装 `ipykernel`。
+2. 在应用菜单中选择**管理 Python 环境**，打开**设置**，选择**使用自定义 Python 环境**。
+3. 选择该环境的 Python 可执行文件。例如，Windows 上 uv 项目环境通常为 `项目目录\.venv\Scripts\python.exe`。
 
-## Launching JupyterLab Desktop
+桌面应用的语言设置与 JupyterLab 网页界面的语言设置相互独立；后者由 Python 环境中的语言包管理。
 
-JupyterLab Desktop can be launched from the GUI of your operating system by clicking the application's icon or by using `jlab` command from the command line. Double clicking `.ipynb` files is also supported and it will launch JupyterLab Desktop and load the notebook file.
+## 界面设置
 
-JupyterLab Desktop sets File Browser's root directory based on the launch method.
+在**设置 → 常规**中，可以：
 
-- If launched from the application icon on GUI or by using `jlab` command without any arguments, then the default working directory is set as the root directory. The default working directory is user home directory but it can be customized from the Settings dialog.
-- If launched by double clicking `.ipynb` file or `jlab` command with a file path as the argument, then file's parent directory is set as the root directory. Similarly, if a file is opened using the `Open...` or `Open File...` links in the Start section or by using drag & drop, then file's parent directory is set as the root directory.
-- If `jlab` command is used with a directory path as the argument or with the `--working-dir` argument then the directory in the argument is set as the root directory. Similarly, if a folder is opened using the `Open Folder...` link in the Start section or by using drag & drop, then the opened directory is set as the root directory
+- 在 **Language / 语言**处选择 English 或简体中文，点击**应用并重启**生效。
+- 在**关闭窗口时**选择**直接关闭**或**最小化到托盘**。
 
-## Sessions and Projects
+## 从源码构建
 
-Sessions represent local project launches and connections to existing JupyterLab servers. Each JupyterLab UI window in the app is associated with a separate session and sessions can be restored with the same configuration later on.
+开发和构建需要 Node.js、Yarn，以及适用于目标平台的构建工具。完整说明见[贡献指南](CONTRIBUTING.md)。
 
-Each launch of JupyterLab in a different working directory is a separate project and projects can have their own configuration such as Python environment and UI layout.
+```bash
+yarn install --frozen-lockfile
+yarn build
+yarn test:unit
+```
 
-### Session start options
+Windows 打包命令为 `yarn dist:win-64`。项目的完整发行包流程还需要准备内置 Python 环境归档；仅运行 `yarn build` 不会生成包含 Python 环境的安装包。
 
-You can start a new session by using the links at the Start section of the Welcome Page.
+## 文档与反馈
 
-<img src="media/start-session.png" alt="Start session" width=220 />
+以下详细文档目前为英文：
 
-- `New notebook...` creates a new notebook in the default working directory.
-- `New session...` launches a new JupyterLab session in the default working directory.
-- `Open...` starts a new JupyterLab session in the selected working directory. If files are chosen, selected files' parent directory becomes the working directory and selected files are opened in the session. On Windows and Linux `Open Folder...` and `Open Files...` options are presented as separate items.
-- `Connect...` creates a session by connecting to an existing JupyterLab server running locally or remotely. Locally running JupyterLab servers are automatically detected and listed in the Connect dialog.
+- [用户指南](user-guide.md)
+- [Python 环境管理指南](python-env-management.md)
+- [命令行使用指南](cli.md)
+- [故障排查](troubleshoot.md)
+- [贡献指南](CONTRIBUTING.md)
 
-Similarly, CLI launches of the application, dropping files and folders, and double clicking to open files create new sessions as well.
-
-Previously opened sessions are stored as part of application data and they are listed on Welcome Page. Clicking an item in the `Recent sessions` list restores the selected session.
-
-<img src="media/recent-sessions.png" alt="Recent sessions" width=300 />
-
-### jlab command-line launch examples
-
-- Open directories using relative or absolute path
-  - `jlab .` launch in current directory
-  - `jlab ../notebooks` launch with relative path
-  - `jlab /Users/username/notebooks` launch with absolute path
-- Open notebooks and other files using relative or absolute path
-  - `jlab /Users/username/notebooks/test.ipynb` launch notebook with absolute path
-  - `jlab ../notebooks/test.ipynb` launch notebook with relative path
-  - `jlab ../test.py` launch python file with relative path
-- Open with a custom Python environment
-  - `jlab --python-path /Users/username/custom_env/bin/python ../notebooks/test.ipynb` launch notebook with custom Python environment
-- Connect to existing JupyterLab server
-  - `jlab https://example.org/lab?token=abcde`
-
-See [CLI documentation](cli.md) for more CLI commands and options.
-
-### JupyterLab Extension support
-
-JupyterLab Desktop currently supports user-friendly [prebuilt](https://jupyterlab.readthedocs.io/en/stable/extension/extension_dev.html#overview-of-extensions) extensions. Source extensions which require rebuilding are not supported.
-
-### Guides and Help
-
-- See [user guide](user-guide.md) for configuration options
-
-- [Python environment management](python-env-management.md) guide for managing Python environments on your system using JupyterLab Desktop
-
-- See [CLI documentation](cli.md) for CLI commands and options
-
-- See [troubleshooting guide](troubleshoot.md) for troubleshooting issues
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for building, running, testing and packaging the application.
-
-## Getting help
-
-Questions about using JupyterLab Desktop are welcome on the [Jupyter Discourse forum](https://discourse.jupyter.org/). If you have found a defect, check the [troubleshooting guide](troubleshoot.md) first, then open an [issue](https://github.com/jupyterlab/jupyterlab-desktop/issues).
-
-Security vulnerabilities never go to a public issue: the [Jupyter security policy](https://jupyter.org/security) asks for a GitHub Security Advisory on this repository, and security@jupyter.org only when that is not possible.
+本项目的问题和建议请提交到 [Issues](https://github.com/htyxyt/jupyterlab-desktop/issues)。项目遵循 [BSD 三条款许可证](LICENSE)。
