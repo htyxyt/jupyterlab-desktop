@@ -10,6 +10,8 @@ permissions: {}
 
 jobs:
   check-latest-version:
+    # This upstream Python-package workflow requires the upstream GitHub App.
+    if: github.repository == 'jupyterlab/jupyterlab-desktop'
     runs-on: ubuntu-latest
     environment: sync
     permissions:

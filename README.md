@@ -59,5 +59,6 @@ Windows 打包命令为 `yarn dist:win-64`。项目的完整发行包流程还�
 - [命令行使用指南](cli.md)
 - [故障排查](troubleshoot.md)
 - [贡献指南](CONTRIBUTING.md)
+- [上游同步和构建自动化说明](.github/UPSTREAM_SYNC.zh-CN.md)
 
 本项目的问题和建议请提交到 [Issues](https://github.com/htyxyt/jupyterlab-desktop/issues)。项目遵循 [BSD 三条款许可证](LICENSE)。

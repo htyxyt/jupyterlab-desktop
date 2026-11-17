@@ -1,0 +1,233 @@
+name: Fork 更新验证
+
+on:
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      create_draft:
+        description: 测试通过后创建 Release 草稿（仅 master，已有标签时停止）
+        type: boolean
+        default: false
+
+permissions: {}
+
+jobs:
+  windows-check:
+    if: >-
+      github.repository == 'htyxyt/jupyterlab-desktop' &&
+      (github.event_name == 'workflow_dispatch' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: windows-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      ui_candidates: ${{ steps.ui-review.outputs.candidate_count }}
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '24.x'
+          cache: yarn
+      - name: 生成待复核的界面文字清单
+        id: ui-review
+        shell: pwsh
+        env:
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          $base = $env:PR_BASE
+          $head = $env:PR_HEAD
+          if (!$base) { $base = (git rev-parse HEAD^); $head = (git rev-parse HEAD) }
+          $env:UI_REVIEW_REPORT = Join-Path $env:RUNNER_TEMP 'ui-translation-review.md'
+          node scripts/report-ui-changes.cjs $base $head
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-Content -Raw $env:UI_REVIEW_REPORT | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: 中文界面变更候选
+          path: ${{ runner.temp }}/ui-translation-review.md
+          if-no-files-found: error
+          retention-days: 14
+      - name: 安装依赖
+        run: yarn install --frozen-lockfile
+      - name: 检查 fork 特性
+        run: node scripts/check-fork-invariants.cjs
+      - name: 检查已有中文翻译未被改动
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.user.login == 'github-actions[bot]' &&
+          startsWith(github.head_ref, 'automation/upstream-')
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: node scripts/check-translation-retention.cjs $env:BASE_SHA
+      - name: 构建和单元测试
+        run: |
+          yarn build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          yarn test:unit
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: 实际启动桌面程序并验证默认行为
+        run: |
+          yarn test:e2e test/e2e/fork-defaults.test.ts --project=electron --workers=1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: 读取版本
+        id: version
+        shell: pwsh
+        run: |
+          $version = node -p "require('./package.json').version"
+          if ($version -notmatch '^\d+\.\d+\.\d+-\d+$') { throw "版本格式不支持: $version" }
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+      - name: 生成 Windows x64 自解压包
+        shell: pwsh
+        env:
+          APP_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (Test-Path env_installer/jlab_server.tar.gz) { throw '发现内置 Python 环境归档，拒绝生成无内置环境的包' }
+          npx electron-builder --win --dir --publish never --config.electronDist=node_modules/electron/dist --config.directories.output=dist-upstream-check
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Move-Item -LiteralPath 'dist-upstream-check/win-unpacked' -Destination 'dist-upstream-check/JupyterLab-Desktop-CN'
+          $seven = Join-Path $env:ProgramFiles '7-Zip/7z.exe'
+          $sfx = Join-Path $env:ProgramFiles '7-Zip/7z.sfx'
+          if (!(Test-Path -LiteralPath $seven) -or !(Test-Path -LiteralPath $sfx)) { throw '找不到 7-Zip 或自解压模块' }
+          $output = Join-Path $PWD "dist-upstream-check/JupyterLab-Desktop-CN-$env:APP_VERSION-Windows-x64-SFX.exe"
+          Push-Location dist-upstream-check
+          try {
+            & $seven a -t7z -mx=5 "-sfx$sfx" $output 'JupyterLab-Desktop-CN/'
+            if ($LASTEXITCODE -ne 0) { throw '自解压包创建失败' }
+            & $seven t $output
+            if ($LASTEXITCODE -ne 0) { throw '自解压包完整性验证失败' }
+            $list = & $seven l -ba $output
+            if ($LASTEXITCODE -ne 0 -or !(($list | Out-String) -match 'JupyterLab-Desktop-CN\\JupyterLab\.exe')) { throw '自解压包缺少预期目录或程序' }
+            Get-FileHash $output -Algorithm SHA256 | Format-List | Out-File -FilePath "$output.sha256.txt" -Encoding utf8
+          } finally { Pop-Location }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-x64-sfx
+          path: |
+            dist-upstream-check/*-SFX.exe
+            dist-upstream-check/*-SFX.exe.sha256.txt
+          if-no-files-found: error
+          retention-days: 14
+
+  auto-merge:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login == 'github-actions[bot]' &&
+      startsWith(github.head_ref, 'automation/upstream-') &&
+      needs.windows-check.outputs.ui_candidates == '0'
+    needs: windows-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      checks: read
+      contents: write
+      pull-requests: write
+    outputs:
+      merged_sha: ${{ steps.merge.outputs.merged_sha }}
+    steps:
+      - name: 核对测试提交和冲突后自动合并
+        id: merge
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
+          TESTED_MERGE: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ ]] || exit 1
+          for value in "$EXPECTED_HEAD" "$EXPECTED_BASE" "$TESTED_MERGE"; do
+            [[ "$value" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          done
+          # All cross-platform and security checks must pass before merging.
+          for attempt in {1..80}; do
+            checks="$(gh api "repos/$GITHUB_REPOSITORY/commits/$EXPECTED_HEAD/check-runs?per_page=100")"
+            required='["tsc --noEmit","zizmor","Unit tests (windows-latest)","Unit tests (ubuntu-latest)","Unit tests (macos-latest)","Playwright (ubuntu-latest)","Playwright (macos-latest)"]'
+            if jq -e --argjson names "$required" '.check_runs as $checks | def latest($n): [$checks[] | select(.name == $n)] | max_by(.id); any($names[]; . as $name | latest($name) | .status == "completed" and (.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out"))' <<< "$checks" >/dev/null; then
+              echo '跨平台或安全检查失败，保留 PR' >&2; exit 1
+            fi
+            if jq -e --argjson names "$required" '.check_runs as $checks | def latest($n): [$checks[] | select(.name == $n)] | max_by(.id); all($names[]; . as $name | latest($name) | .status == "completed" and .conclusion == "success")' <<< "$checks" >/dev/null; then
+              checks_passed=true; break
+            fi
+            sleep 15
+          done
+          [[ "${checks_passed:-false}" == 'true' ]] || { echo '等待跨平台检查超时，保留 PR' >&2; exit 1; }
+          # GitHub computes mergeability asynchronously. Never bypass branch protection.
+          for attempt in {1..10}; do
+            pr="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER")"
+            mergeable="$(jq -r '.mergeable' <<< "$pr")"
+            [[ "$mergeable" != 'null' ]] && break
+            sleep 3
+          done
+          [[ "$mergeable" == 'true' ]] || { echo '无法无冲突合并，保留 PR' >&2; exit 1; }
+          jq -e --arg head "$EXPECTED_HEAD" --arg base "$EXPECTED_BASE" \
+            --arg tested "$TESTED_MERGE" --arg repo "$GITHUB_REPOSITORY" \
+            '.state == "open" and .head.sha == $head and .base.sha == $base and .base.ref == "master" and .head.repo.full_name == $repo and .user.login == "github-actions[bot]" and (.head.ref | startswith("automation/upstream-")) and .merge_commit_sha == $tested' \
+            <<< "$pr" >/dev/null || { echo 'PR 或目标分支发生变化；保留 PR，等待重新检查' >&2; exit 1; }
+          tested_tree="$(gh api "repos/$GITHUB_REPOSITORY/git/commits/$TESTED_MERGE" --jq '.tree.sha')"
+          result="$(gh api --method PUT "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/merge" -f sha="$EXPECTED_HEAD" -f merge_method=merge)"
+          [[ "$(jq -r '.merged' <<< "$result")" == 'true' ]] || { echo 'GitHub 未合并 PR' >&2; exit 1; }
+          merged_sha="$(jq -r '.sha' <<< "$result")"
+          [[ "$merged_sha" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          merged_tree="$(gh api "repos/$GITHUB_REPOSITORY/git/commits/$merged_sha" --jq '.tree.sha')"
+          if [[ "$tested_tree" != "$merged_tree" ]]; then
+            echo '合并后的内容与受测内容不同；不会创建发布草稿，请人工检查' >&2
+            exit 1
+          fi
+          echo "merged_sha=$merged_sha" >> "$GITHUB_OUTPUT"
+          echo "已通过 GitHub 合并 PR #$PR_NUMBER（$merged_sha）。" >> "$GITHUB_STEP_SUMMARY"
+
+  draft:
+    if: >-
+      always() && needs.windows-check.result == 'success' &&
+      ((github.event_name == 'workflow_dispatch' && inputs.create_draft && github.ref == 'refs/heads/master') ||
+       (github.event_name == 'pull_request' && needs.auto-merge.result == 'success'))
+    needs: [windows-check, auto-merge]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: windows-x64-sfx
+          path: release-artifact
+      - name: 创建 Release 草稿
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APP_VERSION: ${{ needs.windows-check.outputs.version }}
+          TARGET_SHA: ${{ github.event_name == 'pull_request' && needs.auto-merge.outputs.merged_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$APP_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$ ]] || exit 1
+          [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo '目标提交格式无效' >&2; exit 1; }
+          tag="v${APP_VERSION}-cn"
+          # Never reuse or overwrite a tag, even if it does not have a Release.
+          refs="$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/$tag" --jq '.[].ref')"
+          releases="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --paginate --jq '.[].tag_name')"
+          if printf '%s\n' "$refs" | grep -Fxq "refs/tags/$tag" || printf '%s\n' "$releases" | grep -Fxq "$tag"; then
+            echo "标签或 Release $tag 已存在；不会覆盖，需先确定新版本号。" | tee -a "$GITHUB_STEP_SUMMARY"
+            if [[ "$GITHUB_EVENT_NAME" == 'pull_request' ]]; then exit 0; else exit 1; fi
+          fi
+          shopt -s nullglob
+          files=(release-artifact/*-SFX.exe release-artifact/*-SFX.exe.sha256.txt)
+          [[ ${#files[@]} -eq 2 ]] || { echo '发布附件不完整' >&2; exit 1; }
+          cat > "$RUNNER_TEMP/release-notes.md" <<'EOF'
+          ## 中文桌面版
+
+          - 包含中文桌面界面和可切换的关闭到托盘功能；欢迎页默认不显示新闻。
+          - 下载 Windows x64 自解压包并选择解压目录，再进入 `JupyterLab-Desktop-CN` 文件夹运行程序。
+          - 本包不内置 Python；请在“管理 Python 环境”中选择已安装 JupyterLab 的环境，例如 uv 创建的 `.venv\Scripts\python.exe`。
+          - 本构建未签名，Windows 可能显示发布者提示。正式发布前请检查变更、翻译候选报告和运行效果。
+          EOF
+          gh release create "$tag" "${files[@]}" --repo "$GITHUB_REPOSITORY" --target "$TARGET_SHA" --title "JupyterLab Desktop $APP_VERSION 中文适配版" --notes-file "$RUNNER_TEMP/release-notes.md" --draft

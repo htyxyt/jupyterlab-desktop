@@ -1,0 +1,83 @@
+name: 同步上游 JupyterLab Desktop
+
+on:
+  schedule:
+    - cron: '23 3 * * *'
+  workflow_dispatch:
+
+permissions: {}
+concurrency:
+  group: upstream-desktop-sync
+  cancel-in-progress: false
+
+jobs:
+  propose:
+    if: github.repository == 'htyxyt/jupyterlab-desktop'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: 检查上游版本并创建合并请求
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="$(gh api repos/jupyterlab/jupyterlab-desktop/releases/latest --jq .tag_name)"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9]+)?$ ]]; then
+            echo "上游版本标签格式不符合预期，已停止：$tag" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          branch="automation/upstream-${tag}"
+          git fetch --no-tags https://github.com/jupyterlab/jupyterlab-desktop.git "refs/tags/$tag"
+          upstream_sha="$(git rev-parse 'FETCH_HEAD^{commit}')"
+          if git merge-base --is-ancestor "$upstream_sha" HEAD; then
+            echo "上游 $tag 已包含在当前分支中，无需同步。" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if git ls-remote --exit-code --heads origin "refs/heads/$branch" >/dev/null; then
+            existing="$(gh pr list --repo "$GITHUB_REPOSITORY" --base master --head "$branch" --state open --json number --jq 'length')"
+            if [[ "$existing" == '0' ]]; then
+              # A previous push may have succeeded while PR creation was disabled.
+              gh pr create --repo "$GITHUB_REPOSITORY" --base master --head "$branch" --title "同步上游 JupyterLab Desktop $tag" --body "该分支已存在；请核对内容和检查结果。无冲突且保护检查通过后可自动合并，正式发布由人工执行。"
+              echo "已为现有分支 $branch 创建 PR。" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "分支 $branch 和 PR 已存在；不会覆盖已有修改。" >> "$GITHUB_STEP_SUMMARY"
+            fi
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -c "$branch"
+          if ! git merge --no-commit --no-ff "$upstream_sha"; then
+            {
+              echo "## 上游同步存在冲突"
+              echo "上游版本：$tag（$upstream_sha）"
+              echo '请手动合并并解决以下文件的冲突；本流程没有推送分支或发布版本。'
+              echo '```'
+              git diff --name-only --diff-filter=U
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            git merge --abort
+            exit 1
+          fi
+          git commit -m "Merge upstream desktop $tag"
+          # Authentication is passed only to this push; it is not persisted in .git/config.
+          basic="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c "http.extraheader=AUTHORIZATION: basic $basic" push origin "HEAD:refs/heads/$branch"
+          unset basic
+          cat > "$RUNNER_TEMP/upstream-pr.md" <<EOF
+          自动检测到上游 JupyterLab Desktop **$tag**（\`$upstream_sha\`），已尝试合并到 fork。
+
+          Windows 验证工作流会检查已有中文词条、托盘、默认设置及更新地址，并生成翻译候选报告和自解压包。发现候选文字、检查失败或合并冲突时停止自动合并。
+
+          只有无冲突、检查通过且没有需复核的界面文字时才自动合并。正式发布仍需人工操作。
+          EOF
+          gh pr create --repo "$GITHUB_REPOSITORY" --base master --head "$branch" --title "同步上游 JupyterLab Desktop $tag" --body-file "$RUNNER_TEMP/upstream-pr.md"
+          echo "已创建上游同步 PR：$branch" >> "$GITHUB_STEP_SUMMARY"
