@@ -1,8 +1,15 @@
 import { expect, test } from '@playwright/test';
 import { cleanup, launchApp, pageByTitle } from './helpers';
 
+test.skip(
+  process.platform !== 'win32',
+  'Windows tray behavior is tested on the Windows runner'
+);
+
 test('默认中文、隐藏新闻，语言可切换，关闭窗口后保留会话', async () => {
-  const { app, userDataDir, jupyterDir } = await launchApp();
+  const { app, userDataDir, jupyterDir } = await launchApp({
+    language: 'zh-CN'
+  });
   try {
     const welcome = await pageByTitle(app, /欢迎|welcome/i);
     await welcome.waitForLoadState('domcontentloaded');
@@ -25,6 +32,10 @@ test('默认中文、隐藏新闻，语言可切换，关闭窗口后保留会�
         root,
         'build/out/main/settingsdialog/settingsdialog.js'
       )).SettingsDialog;
+      const defaults = new config.UserSettings(false);
+      if (defaults.getValue(config.SettingType.language) !== 'zh-CN') {
+        throw new Error('Default language is not Chinese');
+      }
       const options: Record<string, unknown> = { isDarkTheme: false };
       for (const key of Object.values(config.SettingType) as string[]) {
         options[key] = config.userSettings.getValue(key);
@@ -63,7 +74,9 @@ test('默认中文、隐藏新闻，语言可切换，关闭窗口后保留会�
     await dialog.close();
 
     const result = await app.evaluate(({ BrowserWindow }) => {
-      const window = BrowserWindow.getAllWindows().find(w => !w.isDestroyed());
+      const window = BrowserWindow.getAllWindows().find(
+        w => !w.isDestroyed() && w.getTitle() === '欢迎'
+      );
       if (!window) throw new Error('Session window not found');
       window.close();
       return { destroyed: window.isDestroyed(), visible: window.isVisible() };

@@ -107,7 +107,11 @@ jobs:
           retention-days: 14
 
   draft:
-    if: github.event_name == 'workflow_dispatch' && inputs.create_draft && github.ref == 'refs/heads/master'
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.create_draft && github.ref == 'refs/heads/master') ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       startsWith(github.head_ref, 'automation/upstream-'))
     needs: windows-check
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -123,15 +127,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           APP_VERSION: ${{ needs.windows-check.outputs.version }}
+          TARGET_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
           [[ "$APP_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$ ]] || exit 1
+          [[ "$TARGET_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo '目标提交格式无效' >&2; exit 1; }
           tag="v${APP_VERSION}-cn"
           # Never reuse or overwrite a tag, even if it does not have a Release.
           refs="$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/$tag" --jq '.[].ref')"
-          if printf '%s\n' "$refs" | grep -Fxq "refs/tags/$tag"; then
-            echo "标签 $tag 已存在；不会覆盖，需先确定新版本号。" >&2
-            exit 1
+          releases="$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --paginate --jq '.[].tag_name')"
+          if printf '%s\n' "$refs" | grep -Fxq "refs/tags/$tag" || printf '%s\n' "$releases" | grep -Fxq "$tag"; then
+            echo "标签或 Release $tag 已存在；不会覆盖，需先确定新版本号。" | tee -a "$GITHUB_STEP_SUMMARY"
+            if [[ "$GITHUB_EVENT_NAME" == 'pull_request' ]]; then exit 0; else exit 1; fi
           fi
           shopt -s nullglob
           files=(release-artifact/*-SFX.exe release-artifact/*-SFX.exe.sha256.txt)
@@ -144,4 +151,4 @@ jobs:
           - 本包不内置 Python；请在“管理 Python 环境”中选择已安装 JupyterLab 的环境，例如 uv 创建的 `.venv\Scripts\python.exe`。
           - 本构建未签名，Windows 可能显示发布者提示。正式发布前请检查变更、翻译候选报告和运行效果。
           EOF
-          gh release create "$tag" "${files[@]}" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "JupyterLab Desktop $APP_VERSION 中文适配版" --notes-file "$RUNNER_TEMP/release-notes.md" --draft
+          gh release create "$tag" "${files[@]}" --repo "$GITHUB_REPOSITORY" --target "$TARGET_SHA" --title "JupyterLab Desktop $APP_VERSION 中文适配版" --notes-file "$RUNNER_TEMP/release-notes.md" --draft

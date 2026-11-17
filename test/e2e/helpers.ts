@@ -45,6 +45,7 @@ export const NEEDS_PYTHON =
 // returned so the caller can remove it alongside userDataDir.
 export async function launchApp(opts?: {
   pythonPath?: string;
+  language?: string;
   appData?: Record<string, unknown>;
 }): Promise<{
   app: ElectronApplication;
@@ -72,19 +73,16 @@ export async function launchApp(opts?: {
       })
     );
   }
-  if (opts?.pythonPath) {
-    // Point new sessions at the temp jupyter dir so notebooks the test creates
-    // (New notebook) land there and get removed with it, instead of the real
-    // home. On macOS the spawned server's cwd follows this setting; HOME alone
-    // does not move it because Electron resolves home via NSHomeDirectory.
-    writeFileSync(
-      join(userDataDir, 'settings.json'),
-      JSON.stringify({
-        pythonPath: opts.pythonPath,
-        defaultWorkingDirectory: jupyterDir
-      })
-    );
-  }
+  // Existing upstream E2E tests exercise English labels; fork-specific tests opt into Chinese.
+  // Isolate notebook output when an environment is supplied.
+  writeFileSync(
+    join(userDataDir, 'settings.json'),
+    JSON.stringify({
+      language: opts?.language || 'en',
+      pythonPath: opts?.pythonPath,
+      defaultWorkingDirectory: opts?.pythonPath ? jupyterDir : undefined
+    })
+  );
   try {
     const app = await electron.launch({
       args: ['.', `--user-data-dir=${userDataDir}`],
