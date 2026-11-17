@@ -37,6 +37,7 @@ const lines = [
   '',
   '此报告仅供人工复核：可能包含误报和遗漏，不表示翻译完整。',
   '请勿自动翻译或修改用户内容、路径、代码和 JupyterLab 网页本体。',
+  '如果存在候选项，上游同步 PR 不会自动合并，请先人工复核。',
   ''
 ];
 if (!candidates.length)
@@ -56,4 +57,10 @@ fs.writeFileSync(
   process.env.UI_REVIEW_REPORT || 'ui-translation-review.md',
   report
 );
+if (process.env.GITHUB_OUTPUT) {
+  fs.appendFileSync(
+    process.env.GITHUB_OUTPUT,
+    `candidate_count=${candidates.length}\n`
+  );
+}
 process.stdout.write(report);

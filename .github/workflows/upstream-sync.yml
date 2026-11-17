@@ -45,7 +45,7 @@ jobs:
             existing="$(gh pr list --repo "$GITHUB_REPOSITORY" --base master --head "$branch" --state open --json number --jq 'length')"
             if [[ "$existing" == '0' ]]; then
               # A previous push may have succeeded while PR creation was disabled.
-              gh pr create --repo "$GITHUB_REPOSITORY" --base master --head "$branch" --title "同步上游 JupyterLab Desktop $tag" --body "该分支已存在；请核对内容、同步版本与检查结果。合并和发布由人工执行。"
+              gh pr create --repo "$GITHUB_REPOSITORY" --base master --head "$branch" --title "同步上游 JupyterLab Desktop $tag" --body "该分支已存在；请核对内容和检查结果。无冲突且保护检查通过后可自动合并，正式发布由人工执行。"
               echo "已为现有分支 $branch 创建 PR。" >> "$GITHUB_STEP_SUMMARY"
             else
               echo "分支 $branch 和 PR 已存在；不会覆盖已有修改。" >> "$GITHUB_STEP_SUMMARY"
@@ -75,9 +75,9 @@ jobs:
           cat > "$RUNNER_TEMP/upstream-pr.md" <<EOF
           自动检测到上游 JupyterLab Desktop **$tag**（\`$upstream_sha\`），已尝试合并到 fork。
 
-          请检查中文版界面、托盘、更新地址和默认设置。Windows 验证工作流会运行单元测试并生成翻译候选报告与自解压包。部分新增或变化的英文可能需要手工翻译。
+          Windows 验证工作流会检查已有中文词条、托盘、默认设置及更新地址，并生成翻译候选报告和自解压包。发现候选文字、检查失败或合并冲突时停止自动合并。
 
-          合并与正式发布需要人工操作；本 PR 不会自动合并或发布。
+          只有无冲突、检查通过且没有需复核的界面文字时才自动合并。正式发布仍需人工操作。
           EOF
           gh pr create --repo "$GITHUB_REPOSITORY" --base master --head "$branch" --title "同步上游 JupyterLab Desktop $tag" --body-file "$RUNNER_TEMP/upstream-pr.md"
           echo "已创建上游同步 PR：$branch" >> "$GITHUB_STEP_SUMMARY"

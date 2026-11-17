@@ -24,6 +24,7 @@ jobs:
       contents: read
     outputs:
       version: ${{ steps.version.outputs.version }}
+      ui_candidates: ${{ steps.ui-review.outputs.candidate_count }}
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
         with:
@@ -34,6 +35,7 @@ jobs:
           node-version: '24.x'
           cache: yarn
       - name: 生成待复核的界面文字清单
+        id: ui-review
         shell: pwsh
         env:
           PR_BASE: ${{ github.event.pull_request.base.sha }}
@@ -56,6 +58,14 @@ jobs:
         run: yarn install --frozen-lockfile
       - name: 检查 fork 特性
         run: node scripts/check-fork-invariants.cjs
+      - name: 检查已有中文翻译未被改动
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.user.login == 'github-actions[bot]' &&
+          startsWith(github.head_ref, 'automation/upstream-')
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: node scripts/check-translation-retention.cjs $env:BASE_SHA
       - name: 构建和单元测试
         run: |
           yarn build
@@ -106,13 +116,68 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  auto-merge:
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login == 'github-actions[bot]' &&
+      startsWith(github.head_ref, 'automation/upstream-') &&
+      needs.windows-check.outputs.ui_candidates == '0'
+    needs: windows-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      merged_sha: ${{ steps.merge.outputs.merged_sha }}
+    steps:
+      - name: 核对测试提交和冲突后自动合并
+        id: merge
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+          EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
+          TESTED_MERGE: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ ]] || exit 1
+          for value in "$EXPECTED_HEAD" "$EXPECTED_BASE" "$TESTED_MERGE"; do
+            [[ "$value" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          done
+          # GitHub computes mergeability asynchronously. Never bypass branch protection.
+          for attempt in {1..10}; do
+            pr="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER")"
+            mergeable="$(jq -r '.mergeable' <<< "$pr")"
+            [[ "$mergeable" != 'null' ]] && break
+            sleep 3
+          done
+          [[ "$mergeable" == 'true' ]] || { echo '无法无冲突合并，保留 PR' >&2; exit 1; }
+          jq -e --arg head "$EXPECTED_HEAD" --arg base "$EXPECTED_BASE" \
+            --arg tested "$TESTED_MERGE" --arg repo "$GITHUB_REPOSITORY" \
+            '.state == "open" and .head.sha == $head and .base.sha == $base and .base.ref == "master" and .head.repo.full_name == $repo and .user.login == "github-actions[bot]" and (.head.ref | startswith("automation/upstream-")) and .merge_commit_sha == $tested' \
+            <<< "$pr" >/dev/null || { echo 'PR 或目标分支发生变化；保留 PR，等待重新检查' >&2; exit 1; }
+          tested_tree="$(gh api "repos/$GITHUB_REPOSITORY/git/commits/$TESTED_MERGE" --jq '.tree.sha')"
+          result="$(gh api --method PUT "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/merge" -f sha="$EXPECTED_HEAD" -f merge_method=merge)"
+          [[ "$(jq -r '.merged' <<< "$result")" == 'true' ]] || { echo 'GitHub 未合并 PR' >&2; exit 1; }
+          merged_sha="$(jq -r '.sha' <<< "$result")"
+          [[ "$merged_sha" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          merged_tree="$(gh api "repos/$GITHUB_REPOSITORY/git/commits/$merged_sha" --jq '.tree.sha')"
+          if [[ "$tested_tree" != "$merged_tree" ]]; then
+            echo '合并后的内容与受测内容不同；不会创建发布草稿，请人工检查' >&2
+            exit 1
+          fi
+          echo "merged_sha=$merged_sha" >> "$GITHUB_OUTPUT"
+          echo "已通过 GitHub 合并 PR #$PR_NUMBER（$merged_sha）。" >> "$GITHUB_STEP_SUMMARY"
+
   draft:
     if: >-
-      (github.event_name == 'workflow_dispatch' && inputs.create_draft && github.ref == 'refs/heads/master') ||
-      (github.event_name == 'pull_request' &&
-       github.event.pull_request.head.repo.full_name == github.repository &&
-       startsWith(github.head_ref, 'automation/upstream-'))
-    needs: windows-check
+      always() && needs.windows-check.result == 'success' &&
+      ((github.event_name == 'workflow_dispatch' && inputs.create_draft && github.ref == 'refs/heads/master') ||
+       (github.event_name == 'pull_request' && needs.auto-merge.result == 'success'))
+    needs: [windows-check, auto-merge]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -127,7 +192,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           APP_VERSION: ${{ needs.windows-check.outputs.version }}
-          TARGET_SHA: ${{ github.sha }}
+          TARGET_SHA: ${{ github.event_name == 'pull_request' && needs.auto-merge.outputs.merged_sha || github.sha }}
         run: |
           set -euo pipefail
           [[ "$APP_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-[0-9]+$ ]] || exit 1
