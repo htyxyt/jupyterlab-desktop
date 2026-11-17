@@ -125,8 +125,9 @@ jobs:
       needs.windows-check.outputs.ui_candidates == '0'
     needs: windows-check
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     permissions:
+      checks: read
       contents: write
       pull-requests: write
     outputs:
@@ -147,6 +148,19 @@ jobs:
           for value in "$EXPECTED_HEAD" "$EXPECTED_BASE" "$TESTED_MERGE"; do
             [[ "$value" =~ ^[0-9a-f]{40}$ ]] || exit 1
           done
+          # All cross-platform and security checks must pass before merging.
+          for attempt in {1..80}; do
+            checks="$(gh api "repos/$GITHUB_REPOSITORY/commits/$EXPECTED_HEAD/check-runs?per_page=100")"
+            required='["tsc --noEmit","zizmor","Unit tests (windows-latest)","Unit tests (ubuntu-latest)","Unit tests (macos-latest)","Playwright (ubuntu-latest)","Playwright (macos-latest)"]'
+            if jq -e --argjson names "$required" '.check_runs as $checks | def latest($n): [$checks[] | select(.name == $n)] | max_by(.id); any($names[]; . as $name | latest($name) | .status == "completed" and (.conclusion == "failure" or .conclusion == "cancelled" or .conclusion == "timed_out"))' <<< "$checks" >/dev/null; then
+              echo '跨平台或安全检查失败，保留 PR' >&2; exit 1
+            fi
+            if jq -e --argjson names "$required" '.check_runs as $checks | def latest($n): [$checks[] | select(.name == $n)] | max_by(.id); all($names[]; . as $name | latest($name) | .status == "completed" and .conclusion == "success")' <<< "$checks" >/dev/null; then
+              checks_passed=true; break
+            fi
+            sleep 15
+          done
+          [[ "${checks_passed:-false}" == 'true' ]] || { echo '等待跨平台检查超时，保留 PR' >&2; exit 1; }
           # GitHub computes mergeability asynchronously. Never bypass branch protection.
           for attempt in {1..10}; do
             pr="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER")"
